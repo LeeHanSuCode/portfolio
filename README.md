@@ -15,46 +15,31 @@
 
 </br>
 
-## :pushpin: Projects
-### 1. [goQuality](https://github.com/Integerous/goQuality)
->  고퀄리티 개발 컨텐츠 공유 서비스 (개인 프로젝트)  
-> 개발 기간: 
->  
-> 기술 스택:  
-> Java 8 / Spring Boot / Gradle / Spring Data JPA / QueryDSL  
-> H2 / MySQL / Spring Security / Jsoup / Vue.js / Element U  
->  
-> [프로젝트 상세 설명](https://github.com/Integerous/goQuality) 참고
-
-
 --------------------------------------------------------------
 # :pushpin: goQuality
->고퀄리티 개발 컨텐츠 공유 서비스  
->https://go-quality.dev  
+>게시판 프로젝트 
+>(https://github.com/LeeHanSuCode/board-study) 
 
 </br>
 
 ## 1. 제작 기간 & 참여 인원
-- 2019년 2월 18일 ~ 4월 5일
+- 2022년 5월 1일 ~ 5월 30일
 - 개인 프로젝트
 
 </br>
 
 ## 2. 사용 기술
 #### `Back-end`
-  - Java 8
-  - Spring Boot 2.3
+  - Java 11
+  - Spring Boot 2.6.7
   - Gradle
   - Spring Data JPA
   - QueryDSL
-  - H2
-  - MySQL 5.7
-  - Spring Security
-  - Jsoup
+  - Oracle 19c
+  
 #### `Front-end`
-  - Vue.js 3.0
-  - Element UI
-
+  - html
+  - javascript
 </br>
 
 ## 3. ERD 설계

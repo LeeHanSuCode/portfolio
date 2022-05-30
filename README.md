@@ -35,7 +35,7 @@
   - Gradle
   - Spring Data JPA
   - QueryDSL
-  - Oracle 19c
+  - Oracle 18c
   
 #### `Front-end`
   - html

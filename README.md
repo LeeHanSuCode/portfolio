@@ -113,100 +113,154 @@
 </br>
 
 ## 5. 핵심 트러블 슈팅
-### 5.1. 컨텐츠 필터와 페이징 처리 문제
-- 저는 이 서비스가 페이스북이나 인스타그램 처럼 가볍게, 자주 사용되길 바라는 마음으로 개발했습니다.  
-때문에 페이징 처리도 무한 스크롤을 적용했습니다.
+### 5.1. 엔티티 조회시 연관 관계 엔티티는 따로 쿼리를 날려 조회하는 문제.
 
-- 하지만 [무한스크롤, 페이징 혹은 “더보기” 버튼? 어떤 걸 써야할까](https://cyberx.tistory.com/82) 라는 글을 읽고 무한 스크롤의 단점들을 알게 되었고,  
-다양한 기준(카테고리, 사용자, 등록일, 인기도)의 게시물 필터 기능을 넣어서 이를 보완하고자 했습니다.
+- 회원 엔티티 조회시 , 연관 관계로 있는 게시글을 한번에 가져오지 않고
+- 쿼리를 2번 날려 조회해오는 것을 확인하였습니다.
 
-- 그런데 게시물이 필터링 된 상태에서 무한 스크롤이 동작하면,  
-필터링 된 게시물들만 DB에 요청해야 하기 때문에 아래의 **기존 코드** 처럼 각 필터별로 다른 Query를 날려야 했습니다.
+<details>
+<summary><b>해결</b></summary>
+<div markdown="1">
+
+~~~java
+
+    @Query("select m from Member m left join fetch m.boardList where m.id=:id")
+    public Optional<Member> findByFetchId(@Param("id") Long id);
+  ~~~
+
+fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니다.  
+
+</div>
+</details>
+
+### 5.2. 회원 삭제시 수 많은 쿼리 전송.
+  
+  -회원 삭제시 회원이 작성한 게시글과 댓글을 삭제해야 했습니다.
+   또한 , 게시글마다 있는 댓글과 파일 또한 삭제가 필요했습니다.
+  
+  
 
 <details>
 <summary><b>기존 코드</b></summary>
 <div markdown="1">
 
+//MemberService
 ~~~java
-/**
- * 게시물 Top10 (기준: 댓글 수 + 좋아요 수)
- * @return 인기순 상위 10개 게시물
- */
-public Page<PostResponseDto> listTopTen() {
 
-    PageRequest pageRequest = PageRequest.of(0, 10, Sort.Direction.DESC, "rankPoint", "likeCnt");
-    return postRepository.findAll(pageRequest).map(PostResponseDto::new);
-}
+    //회원 삭제 작업
+    @Transactional
+    public void removeMember(Long id){
+        Member member = memberRepository.findByFetchId(id)
+                .orElseThrow(() -> new MemberException("존재하지 않는 회원 입니다."));
 
-/**
- * 게시물 필터 (Tag Name)
- * @param tagName 게시물 박스에서 클릭한 태그 이름
- * @param pageable 페이징 처리를 위한 객체
- * @return 해당 태그가 포함된 게시물 목록
- */
-public Page<PostResponseDto> listFilteredByTagName(String tagName, Pageable pageable) {
+        //회원이 작성한 게시글을 삭제
+        for(Board b :  member.getBoardList()){
+            deletedByMember(b);			
+            boardRepository.delete(b);
+        }
 
-    return postRepository.findAllByTagName(tagName, pageable).map(PostResponseDto::new);
-}
+        memberRepository.delete(member);			
+    }
 
-// ... 게시물 필터 (Member) 생략 
+  
+  //게시글과 연관된 파일과 댓글 삭제.
+ private void deletedByMember(Board board){			
+        //게시글 삭제
+        if(board.getFileStores().size()>0){
+            for(FileStore f : board.getFileStores()){
+                fileStoreRepository.delete(f);
+            }
+        }
 
-/**
- * 게시물 필터 (Date)
- * @param createdDate 게시물 박스에서 클릭한 날짜
- * @return 해당 날짜에 등록된 게시물 목록
- */
-public List<PostResponseDto> listFilteredByDate(String createdDate) {
-
-    // 등록일 00시부터 24시까지
-    LocalDateTime start = LocalDateTime.of(LocalDate.parse(createdDate), LocalTime.MIN);
-    LocalDateTime end = LocalDateTime.of(LocalDate.parse(createdDate), LocalTime.MAX);
-
-    return postRepository
-                    .findAllByCreatedAtBetween(start, end)
-                    .stream()
-                    .map(PostResponseDto::new)
-                    .collect(Collectors.toList());
+        //댓글 삭제
+        if(board.getComments().size() > 0){
+            for(Comments c : board.getComments()){
+                commentsRepository.delete(c);       
+            }
+        }
     }
 ~~~
-
+  
+  
 </div>
 </details>
+  
+ 
+ 게시글을 삭제할 때마다 그와 연관된 댓글과 파일들의 수만큼 delete 쿼리가 날라가는 문제가 발생하였습니다.
+ 이는 spring data jpa가 기본으로 제공하는 delete를 이용하여 삭제한 것이 원인이 되어 , 
+ JPA 벌크 연산을 이용하여 문제를 해결하였습니다.
 
-- 이 때 카테고리(tag)로 게시물을 필터링 하는 경우,  
-각 게시물은 최대 3개까지의 카테고리(tag)를 가질 수 있어 해당 카테고리를 포함하는 모든 게시물을 질의해야 했기 때문에  
-- 아래 **개선된 코드**와 같이 QueryDSL을 사용하여 다소 복잡한 Query를 작성하면서도 페이징 처리를 할 수 있었습니다.
-
-<details>
-<summary><b>개선된 코드</b></summary>
+ <details>
+<summary><b>해결 코드</b></summary>
 <div markdown="1">
+  
+  //MemberService
+  ~~~java
+    @Transactional
+    public void removeMember(Long id){
+        Member member = memberRepository.findByFetchId(id)
+                .orElseThrow(() -> new MemberException("존재하지 않는 회원 입니다."));
+        
+  
+        //회원이 작성한 게시글을 삭제
+        for(Board b :  member.getBoardList()){
+            deletedByBoard(b);
+            boardRepository.delete(b);
+        }
 
-~~~java
-/**
- * 게시물 필터 (Tag Name)
- */
-@Override
-public Page<Post> findAllByTagName(String tagName, Pageable pageable) {
+        //회원이 작성한 댓글 삭제
+        deletedByMember(member);
 
-    QueryResults<Post> results = queryFactory
-            .selectFrom(post)
-            .innerJoin(postTag)
-                .on(post.idx.eq(postTag.post.idx))
-            .innerJoin(tag)
-                .on(tag.idx.eq(postTag.tag.idx))
-            .where(tag.name.eq(tagName))
-            .orderBy(post.idx.desc())
-                .limit(pageable.getPageSize())
-                .offset(pageable.getOffset())
-            .fetchResults();
+        memberRepository.delete(member);
+    }
 
-    return new PageImpl<>(results.getResults(), pageable, results.getTotal());
-}
-~~~
+  
+  
+    //삭제되는 게시글과 연관된 파일과 댓글 삭제
+    private void deletedByBoard(Board board){
+        //게시글 삭제
+        if(board.getFileStores().size()>0){
+            fileStoreRepository.deletedByBoard(board);
+        }
 
-</div>
+        //댓글 삭제
+        if(board.getComments().size() > 0){
+            commentsRepository.deletedByBoard(board);
+        }
+    }
+
+  
+    //삭제되는 회원과 연관된 댓글 삭제
+    private void deletedByMember(Member member){
+        if(member.getCommentsList().size() > 0){
+            commentsRepository.deletedByMember(member);
+        }
+    }
+  ~~~
+  
+  
+  //Repository
+  ~~~java
+  
+    //CommentsRepository(회원이 작성한 댓글 삭제)
+    @Modifying
+    @Query("delete from Comments c where c.member =:member")
+    public int deletedByMember(@Param("member")Member member);
+  
+    //CommentsRepository(게시글에 작성된 댓글 삭제)
+    @Modifying
+    @Query("delete from Comments c where c.board =:board")
+    public int deletedByBoard(@Param("board")Board board);
+  
+  
+     //FileRepository(게시글에 있는 파일 삭제)
+    @Modifying
+    @Query("delete from FileStore f where f.board = :board")
+    public int deletedByBoard(@Param("board") Board board);
+  
+  ~~~
+  </div>
 </details>
-
 </br>
 
 ## 6. 그 외 트러블 슈팅

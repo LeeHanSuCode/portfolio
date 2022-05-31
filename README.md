@@ -116,7 +116,7 @@
 ### 5.1. 엔티티 조회시 연관 관계 엔티티는 따로 쿼리를 날려 조회하는 문제.
 
 - 회원 엔티티 조회시 , 연관 관계로 있는 게시글을 한번에 가져오지 않고
-- 쿼리를 2번 날려 조회해오는 것을 확인하였습니다.
+ 쿼리를 2번 날려 조회해오는 것을 확인하였습니다.
 
 <details>
 <summary><b>해결</b></summary>
@@ -239,26 +239,31 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
   ~~~
   
   
-  //Repository
+  //FileStoreRepository
   ~~~java
   
-    //CommentsRepository(회원이 작성한 댓글 삭제)
-    @Modifying
-    @Query("delete from Comments c where c.member =:member")
-    public int deletedByMember(@Param("member")Member member);
-  
-    //CommentsRepository(게시글에 작성된 댓글 삭제)
-    @Modifying
-    @Query("delete from Comments c where c.board =:board")
-    public int deletedByBoard(@Param("board")Board board);
-  
-  
-     //FileRepository(게시글에 있는 파일 삭제)
+    //게시글에 있는 파일 삭제
     @Modifying
     @Query("delete from FileStore f where f.board = :board")
     public int deletedByBoard(@Param("board") Board board);
   
   ~~~
+  
+  
+ //CommentesRepository
+  ~~~java
+  
+     //회원이 작성한 댓글 삭제
+    @Modifying
+    @Query("delete from Comments c where c.member =:member")
+    public int deletedByMember(@Param("member")Member member);
+  
+    //게시글에 작성된 댓글 삭제
+    @Modifying
+    @Query("delete from Comments c where c.board =:board")
+    public int deletedByBoard(@Param("board")Board board);
+  ~~~
+  
   </div>
 </details>
 </br>

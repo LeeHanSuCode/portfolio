@@ -209,19 +209,24 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </br>
 
 ## 6. 그 외 트러블 슈팅
-<summary>생성자 자동 주입시 순환 참조</summary>
 <details>
+<summary>생성자 자동 주입시 순환 참조</summary>
 <div markdown="1">
+  
 -원인 : Service 계층들끼리 서로 참조하고 있어 문제가 발생. 
 -해결 : 단방향 참조로 변경 . Service -> Repository 계층만 참조하도록 전체 구조 변경.
+  
 </div>
 </details>
 
-<summary>파일 다운로드</summary>
+
 <details>
+<summary>파일 다운로드</summary>
 <div markdown="1">
+  
 -원인 : CONTENT_DISPOSITION 헤더의 부재.
 -해결 : ResponseEntity를 사용하여 응답에  contentDisposition = "attachment; filename 추가하여 해결
+  
 </div>
 </details>
 

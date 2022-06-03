@@ -45,7 +45,6 @@
 ## 3. ERD 설계
 ![20220603_195928](https://user-images.githubusercontent.com/101684811/171841579-972eac4f-430b-44fd-b017-6a82828b6ca1.png)
 
-![](https://zuminternet.github.io/images/portal/post/2019-04-22-ZUM-Pilot-integer/final_erd.png)
 ## 4. 핵심 기능
 이 서비스의 핵심 기능은 컨텐츠 등록 기능입니다.  
 이 단순한 기능의 흐름을 보면, 서비스가 어떻게 동작하는지 알 수 있습니다.  

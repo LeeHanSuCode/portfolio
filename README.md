@@ -228,6 +228,18 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </div>
 </details>
 
+<details>
+<summary>롬복 @Builder 생성자 문제</summary>
+<div markdown="1">
+  
+-원인 : @Builder는 생성자가 없을 경우 , 모든 파라미터를 받는 생성자를 생성해줍니다.
+        반면 ,JPA를 이용할 때 기본 생성자가 필요하기에 @NoArgsConstructor 사용하였기에 @Builder가 모든 멤버 변수를 갖는
+        생성자를 생성해주지 않았습니다.</br>
+-해결 : @AllArgsConstructor를 이용하여 직접 생성해줌으로써 해결하였습니다.
+</div>
+</details>
+
+
 
 </br>
 

@@ -36,7 +36,7 @@
   - QueryDSL
   - Oracle 18c
   
-#### `Front-end`
+#### `Front-d`
   - html
   - javascript
 </br>
@@ -239,7 +239,15 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </div>
 </details>
 
-
+<details>
+<summary>일대다 fetch join</summary>
+<div markdown="1">
+  
+-원인 : 회원을 중심으로 게시글을 가져올 때 , 일 대 다 관계에서 fetch join을 이용하여 조회하는데 , 이 때 row 수의 문제가 발생하였습니다.</br>
+-해결 : 다행히 회원을 통한 게시글의 조회였고 , 컬렉션 페치 조인도 1개만 사용하였기에 "distinct"를 넣어 해결 하였습니다.
+  
+</div>
+</details>
 
 </br>
 

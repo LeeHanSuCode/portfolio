@@ -249,5 +249,78 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </div>
 </details>
 
+<details>
+<summary>HttpMediaTypeNotAcceptableException 예외</summary>
+<div markdown="1">
+  
+-원인 : @ExceptionHandler를 통한 예외처리 과정에서 해당 객체를 반환하는데 예외가 발생하였습니다.</br>
+   ~~~java
+  //기존 코드
+  @Slf4j
+@RestControllerAdvice
+public class ApiExceptionController {
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResult> memberNotFoundHandler(MemberNotFoundException e){
+        errorLog(e);
+        return new ResponseEntity(new ErrorResult("MemberNotFound" , e.getMessage()) , HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResult> boardNotFoundHandler(BoardNotFoundException e){
+        errorLog(e);
+        return new ResponseEntity(new ErrorResult("BoardNotFound" , e.getMessage()) , HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResult> commentNotFoundHandler(CommentNotFoundException e){
+        errorLog(e);
+        return new ResponseEntity(new ErrorResult("CommentNotFound" , e.getMessage()) , HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResult> filesNotFoundHandler(FilesNotFoundException e){
+        errorLog(e);
+        return new ResponseEntity(new ErrorResult("FilesNotFound" , e.getMessage()) , HttpStatus.NOT_FOUND);
+    }
+
+    private void errorLog(RuntimeException e){
+        log.error("[exceptionHandler] ex" , e);
+    }
+
+  
+    //해결 코드에서 이부분만 변경됩니다.
+     class ErrorResult{
+        private String code;
+        private String message;
+
+        public ErrorResult(String code, String message) {
+            this.code = code;
+            this.message = message;
+        }
+    }
+}
+
+  ~~~
+-해결 : Jackson이 Json으로 객체를 변환할 때 내부적으로 ObjectMapping API를 사용하여 객체를 변환합니다.
+        그 변환 과정에서 Jackson 라이브러리는 Getter/Setter 프로퍼티를 기준으로 동작한다는 걸 알고 , 
+        내부 클래스에 @Getter 어노테이션을 추가하여 해결하였습니다.
+  
+  ~~~java
+     @Getter
+     class ErrorResult{
+        private String code;
+        private String message;
+
+        public ErrorResult(String code, String message) {
+            this.code = code;
+            this.message = message;
+        }
+    }
+  ~~~
+  
+</div>
+</details>
+
 </br>
 

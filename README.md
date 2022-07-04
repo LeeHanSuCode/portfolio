@@ -204,6 +204,324 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
   
   </div>
 </details>
+
+### 5.3. API Validation 예외처리
+
+<details>
+<summary><b>기존 코드</b></summary>
+<div markdown="1">
+
+//MemberService
+~~~java
+//controller
+
+@PostMapping
+public EntityModel<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto){
+	
+
+        
+        Member joinMember = memberService.join(joinMemberDto);
+
+        return EntityModel.of(
+                        UpdateMemberDto.builder()
+                                .id(joinMember.getId())
+                                .userId(joinMember.getUserId())
+                                .username(joinMember.getUsername())
+                                .ssn(joinMember.getSsn().substring(0,7))
+                                .email(joinMember.getEmail())
+                                .tel(joinMember.getTel())
+                                .build())
+                .add(linkTo(MemberController.class)
+                        .slash(joinMember.getId())
+                        .withSelfRel());
+}
+~~~
+
+~~~java
+//회원 가입 검증용 DTO
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+public class JoinMemberDto {
+    private Long id;
+
+    @NotBlank
+    @Size(min = 2 , max = 4)
+    private String username;
+
+    @NotBlank
+    @Pattern(regexp = "[a-zA-Z0-9]{8,20}")
+    @Size(min = 8 , max = 20)
+    private String userId;
+
+    @Pattern(regexp = "\\d{2}([0]\\d|[1][0-2])([0][1-9]|[1-2]\\d|[3][0-1])[-]*[1-4]\\d{6}")
+    private String ssn;
+
+    @NotBlank
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[~!@#$%^&*()+|=])[A-Za-z\\d~!@#$%^&*()+|=]{8,16}$")
+    @Size(min = 8,max = 16)
+    private String password;
+
+    private String password2;
+
+    @Email
+    private String email;
+
+    private String tel;
+
+    private LocalDateTime createdDate;
+
+}
+
+~~~
+
+~~~java
+//전반적인 예외처리 담당 클래스
+
+@Slf4j
+@RestController
+@ControllerAdvice
+public class ApiExceptionController extends ResponseEntityExceptionHandler {
+	
+	 @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        
+        body.put("timestamp", occurExceptionTime());
+        body.put("status", status.value());
+        body.put("path",request.getDescription(false));
+
+        List<Map> fieldErrors = ex.getBindingResult().getFieldErrors()
+                .stream().map(
+                        fe ->{
+                            HashMap errorInfo = new HashMap();
+                            
+                            errorInfo.put("rejectedValue" , fe.getRejectedValue());
+                            errorInfo.put("fieldName" , fe.getField());
+                            errorInfo.put("message" , fe.getDefaultMessage());
+
+                            return errorInfo;
+                        }
+                ).collect(Collectors.toList());
+
+
+        body.put("fieldErrors", fieldErrors);
+
+        return new ResponseEntity<>(body,status);
+    }
+
+}
+
+
+  //에러 발생한 시간 반환(format)
+    private String occurExceptionTime() {
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+~~~
+  
+  ~~~java
+  //출력결과(postman)
+     "timestamp": "2022-07-05 02:29:13",
+    "status": "BAD_REQUEST",
+    "path": "uri=/members",
+    "fieldErrors": 
+       {
+            "rejectedValue": "hslee",                 //rejectedValue와 fieldName의 중복 문제.
+            "fieldName": "userId",                    //fieldErrors 내부에서 다시 내부로 들어가 fieldName값을 확인해야만 어떠한 필드의 문제인지 파악가능하다는 문제.
+            "message": "크기가 8에서 20 사이여야 합니다"
+        },
+        {
+            "rejectedValue": "hslee",
+            "fieldName": "userId",
+            "message": "\"[a-zA-Z0-9]{8,20}\"와 일치해야 합니다"
+        }
+  ~~~
+    
+    #### 문제
+  - ResponseEntityExceptionHandler를 상속하여 , handleMethodArgumentNotValid 메소드를 재정의하여 사용하였습니다.
+   BeanValidation에 의한 유효성 검증은 잘되었으나 , 필드 2개이상의 값을 비교하여 처리해야 하는 ObjectError까지 처리할 수는 없었습니다.
+   
+  - 반환 데이터 형식에 문제가 있어 , 예외 정보는 내부를 확인해야 어떠한 필드의 데이터인지 알 수 있었으며 
+   같은 필드에 여러 검증 문제가 발생하였을 경우 각기 예외 메세지가 다르다 보니 , 중복데이터가 발생하는 문제가 있었습니다.
+   
+   아래의 출력처럼 표현하고 싶었습니다.
+  
+  ~~~java
+    "timestamp": "2022-07-05 02:29:13",
+    "status": "BAD_REQUEST",
+    "path": "uri=/members",
+    "fieldErrors": 
+      "userId" :{
+            "rejectedValue": "hslee",
+            "fieldName": "userId",
+            "message": [
+                  "userId은 8 ~ 20글자 사이로 입력해 주세요.",
+                   "영어와 숫자로만 구성해주세요."
+                   ]
+        }
+  ~~~
+  
+</div>
+</details>
+  
+
+ <details>
+<summary><b>해결 코드</b></summary>
+<div markdown="1">
+  
+  ~~~java
+      //controller
+       @PostMapping
+    public EntityModel<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto ,BindingResult bindingResult){
+
+        if(!joinMemberDto.getPassword().equals(joinMemberDto.getPassword2())){
+            bindingResult.rejectValue("password","NotEquals","비밀번호가 일치하지 않습니다");
+        }
+
+        if(bindingResult.hasErrors()){
+            throw new ValidationNotFieldMatchedException(bindingResult);
+        }
+
+        Member joinMember = memberService.join(joinMemberDto);
+
+        return EntityModel.of(
+                        UpdateMemberDto.builder()
+                                .id(joinMember.getId())
+                                .userId(joinMember.getUserId())
+                                .username(joinMember.getUsername())
+                                .ssn(joinMember.getSsn().substring(0,7))
+                                .email(joinMember.getEmail())
+                                .tel(joinMember.getTel())
+                                .build())
+                .add(linkTo(MemberController.class)
+                        .slash(joinMember.getId())
+                        .withSelfRel());
+    }
+ 
+
+  ~~~    
+ - BindingResult를 파라미터로 사용하였습니다.
+   대신 , 재정의한 handleMethodArgumentNotValid 메소드가 호출되지 않아 새로운 custom예외를 만들어 예외가 있을 경우 ,호출되도록 처리하였습니다.
+ 
+ - @ControllerAdvice에서 잘못 입력된 값을 꺼내올 수 있게 하기 위해서 , password불일치 예외를 rejectValue로 등록하였습니다.
+ 
+ ~~~java
+ //custom예외
+ public class ValidationNotFieldMatchedException extends RuntimeException{
+
+    private BindingResult bindingResult;
+
+    public ValidationNotFieldMatchedException(BindingResult bindingResult){
+        this.bindingResult = bindingResult;
+    }
+
+    public BindingResult getBindingResult() {
+        return bindingResult;
+    }
+}
+ ~~~
+ - @ControllerAdvice에서 BindingResult를 사용하기 위해 , 해당 예외의 생성자로 주입받아 사용하였습니다.
+ 
+ ~~~java
+ //예외 정보를 담아줄 클래스
+@Getter
+@Builder
+public class ValidationErrorResponse {
+
+    private List<String> messages;
+    private String fieldName;
+    private String rejectedValue;
+}
+
+ ~~~
+ - 반환 데이터인 json의 계층 구조를 표현할 때, Map을 연달아 사용하기에 코드의 가독성이 우려되어 객체를 따로 생성하였습니다.
+  또한 , 중복된 필드의 경우 메세지를 같은 객체에 담아주기 위해 message는 List를 이용하였습니다.
+ 
+ 
+ ~~~java
+ //전반적인 예외처리 담당 클래스
+ @Slf4j
+@RestController
+@ControllerAdvice
+public class ApiExceptionController extends ResponseEntityExceptionHandler {
+	
+  @ExceptionHandler
+    public ResponseEntity<Object> handleValidationNotFieldMatchedException(
+            ValidationNotFieldMatchedException ex, WebRequest request) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", occurExceptionTime());
+        body.put("status",HttpStatus.BAD_REQUEST);
+        body.put("path",request.getDescription(false));
+
+          Map<String ,ValidationErrorResponse> filedErrorsInfo = new HashMap<>();
+
+
+          ex.getBindingResult().getFieldErrors()
+                  .stream().forEach(fe -> {
+
+                                if(filedErrorsInfo.containsKey(fe.getField())){
+
+                                    filedErrorsInfo.get(fe.getField()).getMessages().add(getMessageSource(fe));
+
+                                }else{
+                                    ValidationErrorResponse validationErrorResponse = ValidationErrorResponse.builder()
+                                            .fieldName(fe.getField())
+                                            .rejectedValue(getRejectedValue(fe))
+                                            .messages(new ArrayList<>())
+                                            .build();
+
+                                    validationErrorResponse.getMessages().add(getMessageSource(fe));
+
+                                    filedErrorsInfo.put(fe.getField() , validationErrorResponse);
+                                }
+                          });
+
+        body.put("fieldErrors", filedErrorsInfo);
+
+        return new ResponseEntity<>(body,HttpStatus.BAD_REQUEST);
+    }
+
+
+     //거절된 값을 얻어온다.
+    private String getRejectedValue(FieldError fe) {
+        String rejectedValue = null;
+
+        if(fe.getRejectedValue() == null){
+            rejectedValue = "값이 들어오지 않음";
+        }else{
+            rejectedValue = fe.getRejectedValue().toString();
+        }
+        return rejectedValue;
+    }
+
+    //error 메세지를 얻어온다.
+    private String getMessageSource(FieldError fe) {
+        return Arrays.stream(Objects.requireNonNull(fe.getCodes()))
+                .map(c -> {
+                    try {
+                        Object[] argument = fe.getArguments();
+                        return messageSource.getMessage(c, argument, null);
+                    } catch (NoSuchMessageException e) {
+                        return null;
+                    }
+                }).filter(Objects::nonNull)
+                .findFirst()
+                .orElse(fe.getDefaultMessage());
+    }
+ ~~~
+ - 중복되는 메세지와 재사용성을 고려하여 , MessageResolver가 생성해주는 code값을 가지고 , MessageSource를 이용하였습니다.
+ 
+ - null값이 들어간 경우 , rejectedValue로 값을 꺼내올 때 NPE가 발생할 수 있으므로 따로  getRejectedValue 라는 메소드를 구현하여 처리하였습니다.
+
+  </div>
+</details>
 </br>
 
 ## 6. 그 외 트러블 슈팅
@@ -249,18 +567,7 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </div>
 </details>
 
-<details>
-<summary>HttpMediaTypeNotAcceptableException 예외</summary>
-<div markdown="1">
-  
--원인 : 객체를 Json으로 반환하는데 예외가 발생하였습니다.</br>
--해결 : Jackson이 Json으로 객체를 변환할 때 내부적으로 ObjectMapping API를 사용하여 객체를 변환합니다.
-        그 변환 과정에서 Jackson 라이브러리는 Getter/Setter 프로퍼티를 기준으로 동작한다는 걸 알고 , 
-        내부 클래스에 @Getter 어노테이션을 추가하여 해결하였습니다.
 
-  
-</div>
-</details>
 
 <details>
 <summary>HttpMediaTypeNotAcceptableException 예외</summary>

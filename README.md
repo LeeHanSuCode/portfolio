@@ -216,24 +216,26 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 //controller
 
 @PostMapping
-public EntityModel<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto){
+public ResponseEntity<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto){
 	
 
         
         Member joinMember = memberService.join(joinMemberDto);
 
-        return EntityModel.of(
-                        UpdateMemberDto.builder()
-                                .id(joinMember.getId())
-                                .userId(joinMember.getUserId())
-                                .username(joinMember.getUsername())
-                                .ssn(joinMember.getSsn().substring(0,7))
-                                .email(joinMember.getEmail())
-                                .tel(joinMember.getTel())
-                                .build())
-                .add(linkTo(MemberController.class)
-                        .slash(joinMember.getId())
-                        .withSelfRel());
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(joinMember.getId())
+                .toUri();
+
+
+        return ResponseEntity.created(location).body(
+                UpdateMemberDto.builder()
+                        .id(joinMember.getId())
+                        .userId(joinMember.getUserId())
+                        .username(joinMember.getUsername())
+                        .email(joinMember.getEmail())
+                        .tel(joinMember.getTel())
+                        .build());
 }
 ~~~
 
@@ -256,9 +258,6 @@ public class JoinMemberDto {
     @Pattern(regexp = "[a-zA-Z0-9]{8,20}")
     @Size(min = 8 , max = 20)
     private String userId;
-
-    @Pattern(regexp = "\\d{2}([0]\\d|[1][0-2])([0][1-9]|[1-2]\\d|[3][0-1])[-]*[1-4]\\d{6}")
-    private String ssn;
 
     @NotBlank
     @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[~!@#$%^&*()+|=])[A-Za-z\\d~!@#$%^&*()+|=]{8,16}$")
@@ -378,7 +377,7 @@ public class ApiExceptionController extends ResponseEntityExceptionHandler {
   ~~~java
       //controller
        @PostMapping
-    public EntityModel<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto ,BindingResult bindingResult){
+    public ResponseEntity<UpdateMemberDto> join(@RequestBody @Valid JoinMemberDto joinMemberDto ,BindingResult bindingResult){
 
         if(!joinMemberDto.getPassword().equals(joinMemberDto.getPassword2())){
             bindingResult.rejectValue("password","NotEquals","비밀번호가 일치하지 않습니다");
@@ -390,18 +389,20 @@ public class ApiExceptionController extends ResponseEntityExceptionHandler {
 
         Member joinMember = memberService.join(joinMemberDto);
 
-        return EntityModel.of(
-                        UpdateMemberDto.builder()
-                                .id(joinMember.getId())
-                                .userId(joinMember.getUserId())
-                                .username(joinMember.getUsername())
-                                .ssn(joinMember.getSsn().substring(0,7))
-                                .email(joinMember.getEmail())
-                                .tel(joinMember.getTel())
-                                .build())
-                .add(linkTo(MemberController.class)
-                        .slash(joinMember.getId())
-                        .withSelfRel());
+       URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(joinMember.getId())
+                .toUri();
+
+
+        return ResponseEntity.created(location).body(
+                UpdateMemberDto.builder()
+                        .id(joinMember.getId())
+                        .userId(joinMember.getUserId())
+                        .username(joinMember.getUsername())
+                        .email(joinMember.getEmail())
+                        .tel(joinMember.getTel())
+                        .build());
     }
  
 

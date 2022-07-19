@@ -552,11 +552,24 @@ public class ApiExceptionController extends ResponseEntityExceptionHandler {
 <div markdown="1">
   
 -원인 : @Builder는 생성자가 없을 경우 , 모든 파라미터를 받는 생성자를 생성해줍니다.
-        반면 ,JPA를 이용할 때 기본 생성자가 필요하기에 @NoArgsConstructor 사용하였기에 @Builder가 모든 멤버 변수를 갖는
-        생성자를 생성해주지 않았습니다.</br>
+        반면 ,JPA를 이용할 때 기본 생성자가 필요하여 @NoArgsConstructor 사용하였습니다. 이것이 원인이 되어
+	@Builder는 생성자가 이미 있다고 판단하여 모든 멤버 변수를 갖는 생성자를 생성해주지 않았습니다.</br>
 -해결 : @AllArgsConstructor를 이용하여 직접 생성해줌으로써 해결하였습니다.
 </div>
 </details>
+
+<details>
+<summary>롬복 @Builder - Jpa컬렉션 객체 초기화의 NPE 문제</summary>
+<div markdown="1">
+  
+-원인 : @Builder는 클래스 레벨에 붙였을 때 , 모든 멤버변수를 이용하여 생성자를 생성합니다.
+        이때 , JPA의 양방향 관계로 설정되어 컬렉션 필드는 기존에 초기화 해두었지만 , 이 또한 클래스가 가지고 있는 필드중 하나로 여겨져 따로 초기화 해주지 않을 경우
+	Null이 주입되어 NPE가 발생하였습니다.
+    </br>
+-해결 : 초기화할 필드들만 따로 모아 생성자를 작성한 뒤 , 생성자 위에 @Builder 어노테이션을 붙여 , 양방향 연관관계로써 사용되는 컬렉션 필드에 NULL이 주입되는것을 방지하였습니다.
+</div>
+</details>
+
 
 <details>
 <summary>일대다 fetch join</summary>

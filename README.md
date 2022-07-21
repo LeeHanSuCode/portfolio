@@ -16,7 +16,7 @@
 
 --------------------------------------------------------------
 # :pushpin: goQuality
->게시판 프로젝트 
+>게시판 프로젝트 1
 >(https://github.com/LeeHanSuCode/board-study) 
 
 </br>
@@ -51,14 +51,16 @@
 </br>
 
 ## 5. 핵심 트러블 슈팅
-### 5.1. 엔티티 조회시 연관 관계 엔티티는 따로 쿼리를 날려 조회하는 문제.
+### 5.1 게시판 프로젝트1 에서의 핵심 트러블 슈팅
 
-- 회원 엔티티 조회시 , 연관 관계로 있는 게시글을 한번에 가져오지 않고
- 쿼리를 2번 날려 조회해오는 것을 확인하였습니다.
+#### 1) 엔티티 조회시 연관 관계 엔티티는 따로 쿼리를 날려 조회하는 문제.
 
 <details>
 <summary><b>해결</b></summary>
 <div markdown="1">
+
+- 회원 엔티티 조회시 , 연관 관계로 있는 게시글을 한번에 가져오지 않고
+ 쿼리를 2번 날려 조회해오는 것을 확인하였습니다.
 
 ~~~java
 
@@ -71,16 +73,14 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </div>
 </details>
 
-### 5.2. 회원 삭제시 수 많은 쿼리 전송.
-  
-  -회원 삭제시 회원이 작성한 게시글과 댓글을 삭제해야 했습니다.
-   또한 , 게시글마다 있는 댓글과 파일 또한 삭제가 필요했습니다.
-  
-  
+#### 2) 회원 삭제시 수 많은 쿼리 전송.
 
 <details>
 <summary><b>기존 코드</b></summary>
 <div markdown="1">
+
+  -회원 삭제시 회원이 작성한 게시글과 댓글을 삭제해야 했습니다.
+   또한 , 게시글마다 있는 댓글과 파일 또한 삭제가 필요했습니다.
 
 //MemberService
 ~~~java
@@ -124,13 +124,15 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
 </details>
   
  
- 게시글을 삭제할 때마다 그와 연관된 댓글과 파일들의 수만큼 delete 쿼리가 날라가는 문제가 발생하였습니다.
- 이는 spring data jpa가 기본으로 제공하는 delete를 이용하여 삭제한 것이 원인이 되어 , 
- JPA 벌크 연산을 이용하여 문제를 해결하였습니다.
+ 
 
  <details>
 <summary><b>해결 코드</b></summary>
 <div markdown="1">
+  
+  게시글을 삭제할 때마다 그와 연관된 댓글과 파일들의 수만큼 delete 쿼리가 날라가는 문제가 발생하였습니다.
+ 이는 spring data jpa가 기본으로 제공하는 delete를 이용하여 삭제한 것이 원인이 되어 , 
+ JPA 벌크 연산을 이용하여 문제를 해결하였습니다.
   
   //MemberService
   ~~~java
@@ -205,7 +207,9 @@ fetch join을 활용하여 한번에 조회할 수 있도록 해결하였습니�
   </div>
 </details>
 
-### 5.3. API Validation 예외처리
+### 5.2 게시판 프로젝트2(Restful) 에서의 핵심 트러블 슈팅
+
+#### 1) API Validation 예외처리
 
 <details>
 <summary><b>기존 코드</b></summary>
@@ -523,7 +527,174 @@ public class ApiExceptionController extends ResponseEntityExceptionHandler {
 
   </div>
 </details>
-</br>
+
+#### 2) QueryDsl에서 동적쿼리 정렬 조건 처리
+
+ <details>
+<summary><b>기존 코드</b></summary>
+<div markdown="1">
+
+- Admin 페이지를 개발하던 도중 queryDsl을 이용한 동적쿼리를 작성하였습니다.
+   pageable 객체에서 정렬 조건을 가져오고 싶었습니다. 또한, 유효하지 않은 정렬 조건이 넘어왔을 경우에는 default값으로 Board의 식별자인
+   id값을 이용하여 내림차순 정렬을 시켜주고자 하였습니다.
+
+~~~java
+//AdminBoardRepositoryImpl
+    @Override
+    public Page<Board> findByCond(Pageable pageable, SearchConditionDto searchConditionDto) {
+
+        List<Board> content = jpaQueryFactory
+                .selectFrom(board)
+                .join(board.member, member).fetchJoin()
+                .where(
+                        userIdCond(searchConditionDto.getUserId()),
+                        subjectCond(searchConditionDto.getSubject())
+                ).offset(pageable.getOffset())
+                .limit(pageable.getPageSize())             
+                .fetch();
+
+
+
+        //countQuery
+        Long count = jpaQueryFactory
+                .select(board.count())
+                .from(board)
+                .where(
+                        userIdCond(searchConditionDto.getUserId()),
+                        subjectCond(searchConditionDto.getSubject())
+                ).fetchOne();
+
+        return new PageImpl<>(content,pageable,count);
+    }
+
+
+     //검색 조건
+     //사용자 id를 포함하는 게시글만 가져온다.
+    private BooleanExpression userIdCond(String userId){
+        return StringUtils.hasText(userId) ? board.member.userId.contains(userId) : null;
+    }
+    //검색 조건
+    //제목을 포함하는 게시글만 가져온다.
+    private BooleanExpression subjectCond(String subject){
+        return StringUtils.hasText(subject) ? board.subject.contains(subject) : null;
+    }
+~~~
+
+</div>
+</details>
+
+
+ <details>
+<summary><b>해결 코드</b></summary>
+<div markdown="1">
+ - orderby() 메소드가 받는 파라미터의 타입을 확인하니 , OrderSpecifier라는 클래스였습니다.
+   그리하여 , OrderSpecifier 클래스의 인스턴스를 제가 원하는 정렬 조건에 맞게 만든 후에 생성하여 이용하였습니다.
+   
+   ~~~java
+   //AdminBoardRepositoryImpl
+   
+    @Override
+    public Page<Board> findByCond(Pageable pageable, SearchConditionDto searchConditionDto) {
+
+        OrderSpecifier orderBys = getAllOrderSpecifiers(pageable);		//추가된 코드(아래 메소드 구현)
+
+        List<Board> content = jpaQueryFactory
+                .selectFrom(board)
+                .join(board.member, member).fetchJoin()
+                .where(
+                        userIdCond(searchConditionDto.getUserId()),
+                        subjectCond(searchConditionDto.getSubject())
+                ).offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .orderBy(orderBys)
+                .fetch();
+
+
+
+        //countQuery
+        Long count = jpaQueryFactory
+                .select(board.count())
+                .from(board)
+                .where(
+                        userIdCond(searchConditionDto.getUserId()),
+                        subjectCond(searchConditionDto.getSubject())
+                ).fetchOne();
+
+        return new PageImpl<>(content,pageable,count);
+    }
+    
+    
+         //검색 조건
+     //사용자 id를 포함하는 게시글만 가져온다.
+    private BooleanExpression userIdCond(String userId){
+        return StringUtils.hasText(userId) ? board.member.userId.contains(userId) : null;
+    }
+    //검색 조건
+    //제목을 포함하는 게시글만 가져온다.
+    private BooleanExpression subjectCond(String subject){
+        return StringUtils.hasText(subject) ? board.subject.contains(subject) : null;
+    }
+    
+   
+   //추가된 코드(메소드구현)
+   private OrderSpecifier getAllOrderSpecifiers(Pageable pageable){
+        OrderSpecifier orderBys= null;
+
+
+        if(!pageable.getSort().isEmpty()){
+            Sort sort = pageable.getSort();
+            List<Sort.Order> sortOrder = sort.get().collect(Collectors.toList());
+
+            Order direction = sortOrder.get(0).getDirection().isAscending() ? Order.ASC : Order.DESC;
+	    
+            switch (sortOrder.get(0).getProperty()){
+                case "createdDate":
+                    OrderSpecifier<?> orderByCreatedDate = QueryDslOrderUtilCustom.getSortedColumn(direction , board,"createdDate");
+                    orderBys = orderByCreatedDate;
+                    break;
+
+                case "readCount":
+                    OrderSpecifier<?> orderBySubject = QueryDslOrderUtilCustom.getSortedColumn(direction , board,"readCount");
+                    orderBys = orderBySubject;
+                    break;
+
+                case "id":
+                    OrderSpecifier<?> orderById = QueryDslOrderUtilCustom.getSortedColumn(direction , board,"id");
+                    orderBys = orderById;
+                    break;
+
+                default:
+                    OrderSpecifier<?> defaultOrderBy = QueryDslOrderUtilCustom.getSortedColumn(Order.DESC , board,"id");
+                    orderBys = defaultOrderBy;
+                    break;
+            }
+
+        }
+
+        return orderBys;
+    }
+   ~~~
+   
+   - getAllOrderSpecifiers 해당 메소드는 pageable를 주입받아 , 내부적으로 따로 커스텀한 QueryDslOrderUtilCustom.getSortedColumn 를 이용하여 
+     알맞는 정렬 조건을 가져옵니다.
+     
+   
+   ~~~java
+ //QueryDslOrderUtilCustom  
+   
+public class QueryDslOrderUtilCustom {
+
+    public static OrderSpecifier<?> getSortedColumn(Order order , Path<?> parent , String fieldName){
+        Path<Object> fieldPath = Expressions.path(Object.class, parent , fieldName);
+
+        return new OrderSpecifier(order , fieldPath);
+    }
+
+}
+   
+   ~~~
+</div>
+</details>
 
 ## 6. 그 외 트러블 슈팅
 <details>

@@ -13,7 +13,40 @@
 - 깃헙: https://github.com/LeeHanSuCode
 
 </br>
+## :pushpin: 경력
 
+### 1. 회사명 : 이지차저
+**기간** : 2022-08-31 ~ 2023-05-31 </br>
+**부서명** : 플랫폼 연구소 (소프트웨어)</br>
+
+**서버** : Linux (Centos8)</br>
+**사용한 언어** : Java</br>
+**프레임 워크** : Spring , Spring Boot , Spring Security</br>
+**라이브 러리** : WebSocket , Spring Data JPA , Spring Actuator</br>
+**DB** : MariaDB</br>
+
+
+**작업**
+- OCPP 프로토콜을 이용한 충전기와 서버 연동 작업</br>
+- 서버 환경 구축 </br>
+- 서버 이중화를 통한 Connection 분배를 통해 Connection 관련 예외 발생률 감소 </br>
+
+### 2. 회사명 : GreenCube
+**기간** : 2023-07-01 ~  </br>
+
+**사용한 언어** : Java , JavaScript </br>
+**프레임 워크** : Spring , Spring Boot , Spring Security , Vue.js</br>
+**라이브 러리** : WebSocket , Spring Data JPA , Spring Actuator</br>
+**DB** : MariaDB</br>
+
+**작업** 
+- Admin 개발
+
+
+
+
+
+</br>
 --------------------------------------------------------------
 # :pushpin: goQuality
 >게시판 프로젝트 1
